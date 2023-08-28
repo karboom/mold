@@ -1,18 +1,25 @@
 package me.karboom.mold;
 
-import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.ReUtil;
 
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * 每一个函数对应一个私有变量，互斥之类的，校验的时候决定
+ * 每一个函数对应一个私有变量，互斥之类的，配置的的时候决定
  */
 public class Rule {
+
+	interface CustomRuleFunc extends BiFunction<Object, Object, Rule> {}
+	interface CustomResultFunc extends BiFunction<Object, Object, Boolean> {}
+
 	private Map<Result.ERROR.KEY, String> errorTpl = Result.ERROR.TPL;
 
 	Rule(Map<Result.ERROR.KEY, String> errorTpl) {
@@ -27,19 +34,24 @@ public class Rule {
 	private String _regex;
 	private List<Rule> _array;
 
-	private String _errorMessage;
-	private Function<Result, Result> _errorFunction;
+	private Consumer<Result> _error;
 
 	private Boolean _bool;
 	private Boolean _string;
 	private Integer _precision;
-	private boolean _number;
+	private Boolean _number;
 
-	private boolean _trim;
-	private boolean _upperCase;
-	private boolean _lowerCase;
+	private Boolean _trim;
+	private Boolean _upperCase;
+	private Boolean _lowerCase;
 
-	private Function _condition;
+	private Integer _maxLen;
+	private Integer _minLen;
+	private String _maxVal;
+	private String _minVal;
+
+	private CustomRuleFunc _customRule;
+	private CustomResultFunc _customResult;
 	/**
 	 * 只放行允许的值
 	 */
@@ -116,12 +128,14 @@ public class Rule {
 	}
 
 	public Rule error(String str) {
-		this._errorMessage = str;
+		this._error = (Result res) -> {
+			res.setMessage(str);
+		};
 		return this;
 	}
 
-	public Rule error(Function<Result, Result> func) {
-		this._errorFunction = func;
+	public Rule error(Consumer<Result> func) {
+		this._error = func;
 		return this;
 	}
 
@@ -147,7 +161,8 @@ public class Rule {
 	 * 最大长度限制
 	 * @return
 	 */
-	public Rule maxLen() {
+	public Rule maxLen(Integer input) {
+		this._maxLen = input;
 		return this;
 	}
 
@@ -155,30 +170,44 @@ public class Rule {
 	 * 最小长度限制
 	 * @return
 	 */
-	public Rule minLen() {
+	public Rule minLen(Integer input) {
+		this._minLen = input;
 		return this;
 	}
 
 	/**
 	 * 最大数值限制
 	 */
-	public Rule maxVal() {return this;}
+	public Rule maxVal(String input) {
+		this._maxVal = input;
+		return this;}
 
 	/**
 	 * 最小数值限制
 	 */
-	public Rule minVal() {return this;}
+	public Rule minVal(String input) {
+		this._minVal = input;
+		return this;}
 
 	/**
 	 * 自定义条件
 	 * @param func
 	 * @return
 	 */
-	public Rule condition(Function<Object, Rule> func) {
-		this._condition = func;
+	public Rule custom(CustomRuleFunc func) {
+		this._customRule = func;
+		this._customResult = null;
 		return this;
 	}
 
+	public Rule custom(CustomResultFunc func) {
+		this._customResult = func;
+		this._customRule = null;
+		return this;
+	}
+
+
+	// Todo 如果输入的对象，不是规则支持的类型，应该放过还是卡死
 	public Result _validate(Object target, Object rootTarget) {
 		// 基本类型判断
 		if (_array != null) {
@@ -305,6 +334,64 @@ public class Rule {
 			}
 		}
 
+		if (_maxLen != null) {
+			if (target instanceof String value) {
+				if (value.length() > _maxLen) {
+					return _throw("", "");
+				}
+			}
+		}
+		if (_minLen != null) {
+			if (target instanceof String value) {
+				if (value.length() < _minLen) {
+					return _throw("", "");
+				}
+			}
+		}
+
+		if (_maxVal != null) {
+			// Todo 转换为字符串，然后对比
+		}
+		if (_minVal != null) {
+		}
+
+		if (_trim != null) {
+			if (target instanceof String value) {
+				if (value.trim().length() != value.length()) {
+					return _throw("", "");
+				}
+			}
+		}
+
+		if (_precision != null) {
+			if (target instanceof String value) {
+
+			}
+			if (target instanceof Double value) {
+
+			}
+			if (target instanceof BigDecimal) {
+				// Todo 支持decimal
+			}
+		}
+
+
+		if (_customRule != null) {
+			// Todo 这种条件下不让返回的Rule throw
+			var res = _customRule.apply(rootTarget, target).verify(target);
+			if (!res.success) {
+				return _throw("", "");
+			}
+		}
+		if (_customResult != null) {
+			var res = _customResult.apply(rootTarget, target);
+			if (!res) {
+				return _throw("", "");
+			}
+		}
+
+
+
 		return new Result(){{
 			setSuccess(true);
 		}};
@@ -319,6 +406,10 @@ public class Rule {
 		var result = new Result();
 		result.setPath(path);
 		result.setMessage(message);
+
+		if (_error != null) {
+			this._error.accept(result);
+		}
 
 		return result;
 	}

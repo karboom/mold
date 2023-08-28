@@ -196,11 +196,19 @@ class RuleTest {
 
 	@Test
 	void error() {
+		var tip ="必须是字符串类型";
+		var rule1 = new Rule().string().error(tip);
+		var res1 = rule1.verify(1);
+		Assertions.assertEquals(res1.success, false);
+		Assertions.assertEquals(res1.message, tip);
+
+		var rule2 = new Rule().string().error((Result res)->res.setMessage(tip));
+		var res2 = rule2.verify(1);
+		Assertions.assertEquals(res1.message, tip);
+
 	}
 
-	@Test
-	void testError() {
-	}
+
 
 	@Test
 	void regex() {
@@ -212,10 +220,21 @@ class RuleTest {
 
 	@Test
 	void maxLen() {
+		var rule1 = new Rule().maxLen(5);
+		var res11 = rule1.verify(objStringChar);
+		var res12 = rule1.verify("123你士分");
+		Assertions.assertEquals(res11.success, true);
+		Assertions.assertEquals(res12.success, false);
+
 	}
 
 	@Test
 	void minLen() {
+		var rule1 = new Rule().minLen(3);
+		var res11 = rule1.verify("1");
+		var res12 = rule1.verify("1234");
+		Assertions.assertEquals(res11.success, false);
+		Assertions.assertEquals(res12.success, true);
 	}
 
 	@Test
@@ -227,7 +246,16 @@ class RuleTest {
 	}
 
 	@Test
-	void condition() {
+	void custom() {
+		var rule1 = new Rule().custom((Object a, Object b)-> {
+			return new Rule();
+		});
+//		var res11 = rule1.verify();
+//		Assertions.assertEquals(res11.success, true);
+
+		var rule2 = new Rule().custom((Object a, Object b)->{
+			return false;
+		});
 	}
 
 }

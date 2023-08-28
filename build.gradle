@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'me.karboom'
-version = '1.0.3'
+version = '1.1.1'
 
 repositories {
     mavenCentral()
@@ -65,8 +65,8 @@ publishing {
 
             pom {
                 name = "mold"
-                description = "<<Component Description>>"
-                url = "<<Component URL>>"
+                description = "Java Object Validator"
+                url = "https://github.com/karboom/mold"
                 licenses {
                     license {
                         name = "MIT"
@@ -83,7 +83,7 @@ publishing {
                 scm {
                     connection = ""
                     developerConnection = ""
-                    url = ""
+                    url = "https://github.com/karboom/mold"
                 }
             }
         }
